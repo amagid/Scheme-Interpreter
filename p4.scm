@@ -99,6 +99,7 @@
 (define getThirdPlusOperands (lambda (pt) (cdddar pt)))
 (define getThirdOperand (lambda (pt) (car (getThirdPlusOperands pt))))
 (define getSecondOperand (lambda (pt) (caddar pt)))
+(define getFirstLayer (lambda (pt) (car pt)))
 
 ; Continuations: Break, Continue, Return, Throw
 (define interpreter
@@ -117,7 +118,10 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan 
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
+      ((eqv? (getFirstOperation pt) 'class) (interpreter (getRemainingStatements pt) (defineClass (getFirstOperand pt) (getSecondOperand pt) (extractState (interpreter (getThirdOperand pt) (addLayer s) return cont_c cont_b cont_t))) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'static-var) ())
+      ((eqv? (getFirstOperation pt) 'static-function) ())
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -516,6 +520,29 @@
 (define extractState
   (lambda (returnVals)
     (cdr returnVals)))
+
+
+; ------------------------------------------------------------------------------
+; defineClass
+; Add a new class onto the state and return new state.
+; Class definitions are always on root layer, so the state
+; here will always have 2 layers: other Classes + defs for this class
+;
+; inputs:
+;   name - The name of the class
+;   extends - (extends <classname>) or ()
+;   state - The state ((<root_state_layer>) ((definitions_for_this_class>))
+;
+; ouptuts:
+;   A new state with this class definition added to it
+; ------------------------------------------------------------------------------
+
+(define defineClass
+  (lambda (name extends state)
+    (display name)))
+    
+
+
 
 ; ------------------------------------------------------------------------------
 ; atom?
