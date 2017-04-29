@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------------------------
 ; test
 ; ------------------------------------------------------------------------------
-(define testPrograms '(("TestBool.txt" true)("TestProgram.txt" 7)("Test1.txt" 10)("Test2.txt" 14)("Test3.txt" 45)("Test4.txt" 55)("Test5.txt" 1)("Test6.txt" 115)("Test7.txt" 'true)("Test8.txt" 20)("Test9.txt" 24)("Test10.txt" 2)("Test11.txt" 35)("Test13.txt" 90)("Test14.txt" 69)("Test15.txt" 87)("Test16.txt" 64)("Test18.txt" 125)("Test19.txt" 100)("Test20.txt" 2000400)))
+(define testPrograms '(("Test1.txt" "A" 10)("Test2.txt" "A" 12)("Test3.txt" "A" 125)("Test4.txt" "A" 36)("Test5.txt" "A" 54)("Test6.txt" "A" 110)("Test7.txt" "C" 26)("Test8.txt" "Square" 117)("Test9.txt" "Square" 32)("Test10.txt" "List" 15)("Test11.txt" "List" 123456)("Test12.txt" "List" 5285)("Test13.txt" "C" -716)))
 
 (define testInterpreter
   (lambda (testPrograms passed failed)
@@ -18,7 +18,7 @@
       (else 
        (display (caar testPrograms))
        (display " - ")
-       (display (if (eqv? (interpret (caar testPrograms)) (cadar testPrograms)) "PASSED" "FAILED"))
+       (display (if (eqv? (interpret (caar testPrograms) (cadar testPrograms)) (caddar testPrograms)) "PASSED" "FAILED"))
        (newline)
        (if (eqv? (interpret (caar testPrograms)) (cadar testPrograms)) (testInterpreter (cdr testPrograms) (+ passed 1) failed) (testInterpreter (cdr testPrograms) passed (+ failed 1)))))))
 
