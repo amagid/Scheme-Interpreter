@@ -120,19 +120,8 @@
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
       ((eqv? (getFirstOperation pt) 'class) (interpreter (getRemainingStatements pt) (defineClass (getFirstOperand pt) (getSecondOperand pt) (extractState (interpreter (getThirdOperand pt) (addLayer s) return cont_c cont_b cont_t))) return cont_c cont_b cont_t))
-      (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
-
-
-
-(define interpreter
-  (lambda (pt s return cont_c cont_b cont_t)
-    (cond
-      ((null? pt) (valState '() s))
-      ((null? (getFirstOperation pt)) (interpreter (getRemainingStatements pt) s return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'var) (interpreter (getRemainingStatements pt) (decVal (getFirstOperand pt) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
-      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'static-var) ())
-      ((eqv? (getFirstOperation pt) 'static-function) ())
+      ((eqv? (getFirstOperation pt) 'static-var) (interpreter (getRemainingStatements pt) (decVal (cons (getFirstOperand pt) '()) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
+      ((eqv? (getFirstOperation pt) 'static-function) (interpreter (getRemainingStatements pt) (defineFunc (cons (getFirstOperand pt) '()) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -550,7 +539,7 @@
 
 (define defineClass
   (lambda (name extends state)
-    d
+    (display name)))
     
 
 
