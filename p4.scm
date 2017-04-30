@@ -539,7 +539,19 @@
 
 (define defineClass
   (lambda (name extends state)
-    (display name)))
+    (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
+                                                                             (newline)))))
+
+
+(define separateVars
+  (lambda (vars vals return)
+    (cond
+      ((null? vars) (return '() '() '() '()))
+      ((list? (car vars)) (separateVars (cdr vars) (cdr vals) (lambda (sVars sVals nsVars nsVals)
+                                                                (return (cons (caar vars) sVars) (cons (car vals) sVals) nsVars nsVals))))
+      (else (separateVars (cdr vars) (cdr vals) (lambda (sVars sVals nsVars nsVals)
+                                                  (return sVars sVals (cons (car vars) nsVars) (cons (car vals) nsVals))))))))
+      
     
 
 
