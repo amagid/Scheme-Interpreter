@@ -279,7 +279,7 @@
 (define getVal
   (lambda (name state)
     (cond
-      ((null? name) (cont_t state (buildError "GETVAL ERROR: Name cannot be null." "")))
+      ((null? name) (throwError state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
       ((or (integer? name) (boolean? name)) name)
       ((or (eqv? name 'true) (eqv? name 'false)) name)
@@ -540,7 +540,7 @@
 (define defineClass
   (lambda (name extends state)
     (decVal name (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
-                          (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons      (cons (cons staticVars (cons staticVals '())) (if (null? extends) '() (getAttributes (getVal (cadr extends) state))))       (cons (lambda ()
+                          (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons      (cons (cons staticVars (cons staticVals '())) '())       (cons (lambda ()
                                                                                                                                            (cons 'object (cons name (cons (cons nonStaticVars (cons nonStaticVals '()))   (if (null? extends) '() (cons (getAttributes ((getConstructor (getVal (cadr extends) state)))) '())))))) '())))))) (popLayer state))))
 
 
@@ -552,13 +552,15 @@
                                                                 (return (cons (caar vars) sVars) (cons (car vals) sVals) nsVars nsVals))))
       (else (separateVars (cdr vars) (cdr vals) (lambda (sVars sVals nsVars nsVals)
                                                   (return sVars sVals (cons (car vars) nsVars) (cons (car vals) nsVals))))))))
-
+(define getClassParent (lambda (obj) (cadr obj)))
 (define getAttributes (lambda (obj) (caddr obj)))
 (define getConstructor (lambda (class) (cadddr class)))
+(define isInstance? (lambda (obj) (eqv? (getObjectType obj) 'object)))
+(define getObjectType (lambda (obj) (car obj)))
     
 (define getProperty
   (lambda (object property state)
-    (getVal property (getAttributes (getVal object state)))))
+    (let ((attrs (getAttributes (getVal object state)))) (if (eqv? 'NULL (getVal property attrs)) (if (null? (getClassParent object)) 'NULL (getProperty (getClassParent object) property state)) (getVal property attrs)))))
 
 
 
