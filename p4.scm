@@ -38,7 +38,7 @@
 ;  The evaluation of the code
 ; ------------------------------------------------------------------------------
 (define interpret
-  (lambda (fd)
+  (lambda (fd className)
     (selectReturn
      (call/cc
       (lambda (finalReturn)
@@ -47,7 +47,7 @@
                 (call/cc
                  (lambda (return)
                    (interpreter (parser fd) '((() ())) return continueError breakError throwError))))))
-          ((getVal 'main state) '() state)))))))
+          ((getProperty (string->symbol className) 'main state) '() state)))))))
 
 (define selectReturn
   (lambda (returnVals)
@@ -164,7 +164,7 @@
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s))
-      (else (cont_t (buildError "ERROR: Unknown operator/statement: " st))) )))
+      (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
 ; m_assign - handles an assigment statement
@@ -552,8 +552,13 @@
                                                                 (return (cons (caar vars) sVars) (cons (car vals) sVals) nsVars nsVals))))
       (else (separateVars (cdr vars) (cdr vals) (lambda (sVars sVals nsVars nsVals)
                                                   (return sVars sVals (cons (car vars) nsVars) (cons (car vals) nsVals))))))))
-      
+
+(define getAttributes (lambda (obj) (caddr obj)))
     
+(define getProperty
+  (lambda (object property state)
+    (getVal property (cons (getAttributes (getVal object state)) '()))))
+
 
 
 
