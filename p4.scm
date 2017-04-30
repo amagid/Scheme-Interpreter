@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------------------------
 ; test
 ; ------------------------------------------------------------------------------
-(define testPrograms '(("Test1.txt" "A" 10)("Test2.txt" "A" 12)("Test3.txt" "A" 125)("Test4.txt" "A" 36)("Test5.txt" "A" 54)("Test6.txt" "A" 110)("Test7.txt" "C" 26)("Test8.txt" "Square" 117)("Test9.txt" "Square" 32)("Test10.txt" "List" 15)("Test11.txt" "List" 123456)("Test12.txt" "List" 5285)("Test13.txt" "C" -716)))
+(define testPrograms '(("Test1.txt" "A" 15)("Test2.txt" "A" 12)("Test3.txt" "A" 125)("Test4.txt" "A" 36)("Test5.txt" "A" 54)("Test6.txt" "A" 110)("Test7.txt" "C" 26)("Test8.txt" "Square" 117)("Test9.txt" "Square" 32)("Test10.txt" "List" 15)("Test11.txt" "List" 123456)("Test12.txt" "List" 5285)("Test13.txt" "C" -716)))
 
 (define testInterpreter
   (lambda (testPrograms passed failed)
@@ -20,7 +20,7 @@
        (display " - ")
        (display (if (eqv? (interpret (caar testPrograms) (cadar testPrograms)) (caddar testPrograms)) "PASSED" "FAILED"))
        (newline)
-       (if (eqv? (interpret (caar testPrograms)) (cadar testPrograms)) (testInterpreter (cdr testPrograms) (+ passed 1) failed) (testInterpreter (cdr testPrograms) passed (+ failed 1)))))))
+       (if (eqv? (interpret (caar testPrograms) (cadar testPrograms)) (cadar testPrograms)) (testInterpreter (cdr testPrograms) (+ passed 1) failed) (testInterpreter (cdr testPrograms) passed (+ failed 1)))))))
 
 ; Shorthand for testing
 (define test
@@ -164,6 +164,8 @@
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s))
+      ((eqv? (getStOperator st) 'new) (cons ((getConstructor (getVal (getStFirstOperand st) s))) s))
+      ((eqv? (getStOperator st) 'dot) (cons (getProperty (getStFirstOperand st) (getStSecondOperand st) s) s))
       (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
 
 ; ------------------------------------------------------------------------------
@@ -541,7 +543,7 @@
   (lambda (name extends state)
     (decVal name (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
                           (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons      (cons (cons staticVars (cons staticVals '())) '())       (cons (lambda ()
-                                                                                                                                           (cons 'object (cons name (cons (cons nonStaticVars (cons nonStaticVals '()))   (if (null? extends) '() (cons (getAttributes ((getConstructor (getVal (cadr extends) state)))) '())))))) '())))))) (popLayer state))))
+                                                                                                                                           (cons 'object (cons name (cons (cons (cons nonStaticVars (cons nonStaticVals '()))   (if (null? extends) '() (cons (getAttributes ((getConstructor (getVal (cadr extends) state)))) '()))) '())))) '())))))) (popLayer state))))
 
 
 (define separateVars
