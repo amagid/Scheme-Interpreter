@@ -18,9 +18,10 @@
       (else 
        (display (caar testPrograms))
        (display " - ")
-       (display (if (eqv? (interpret (caar testPrograms) (cadar testPrograms)) (caddar testPrograms)) "PASSED" "FAILED"))
-       (newline)
-       (if (eqv? (interpret (caar testPrograms) (cadar testPrograms)) (cadar testPrograms)) (testInterpreter (cdr testPrograms) (+ passed 1) failed) (testInterpreter (cdr testPrograms) passed (+ failed 1)))))))
+       (let ((result (interpret (caar testPrograms) (cadar testPrograms))))
+         (display (if (eqv? result (caddar testPrograms)) "PASSED" "FAILED"))
+         (newline)
+         (if (eqv? result (cadar testPrograms)) (testInterpreter (cdr testPrograms) (+ passed 1) failed) (testInterpreter (cdr testPrograms) passed (+ failed 1))))))))
 
 ; Shorthand for testing
 (define test
@@ -118,7 +119,7 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s)) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState           (if (procedure? (getFirstOperand pt)) ((getFirstOperand pt) (resolveArgs (getSecondPlusOperands pt) s cont_t) s) ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s))          ) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
       ((eqv? (getFirstOperation pt) 'class) (interpreter (getRemainingStatements pt) (defineClass (getFirstOperand pt) (getSecondOperand pt) (extractState (interpreter (getThirdOperand pt) (addLayer s) return cont_c cont_b cont_t))) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'static-var) (interpreter (getRemainingStatements pt) (decVal (cons (getFirstOperand pt) '()) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
       ((eqv? (getFirstOperation pt) 'static-function) (interpreter (getRemainingStatements pt) (defineFunc (cons (getFirstOperand pt) '()) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
@@ -157,13 +158,12 @@
       ((eqv? (getStOperator st) '!=) (cons (not (eqv? (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t)))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '>) (cons (> (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '>=) (cons (>= (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) '<) (cons (<
-                                           (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
+      ((eqv? (getStOperator st) '<) (cons (< (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '<=) (cons (<= (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) ((getVal (getStFirstOperand st) s) (resolveArgs (getStRemainingOperands st) s cont_t) s))
+      ((eqv? (getStOperator st) 'funcall) (let ((func (if (list? (getStFirstOperand st)) (extractValue (m_eval (getStFirstOperand st))) (getVal (getStFirstOperand st) s)))) (func (resolveArgs (getStRemainingOperands st) s cont_t) s)))
       ((eqv? (getStOperator st) 'new) (cons ((getConstructor (getVal (getStFirstOperand st) s))) s))
       ((eqv? (getStOperator st) 'dot) (cons (getProperty (getStFirstOperand st) (getStSecondOperand st) s) s))
       (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
