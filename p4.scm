@@ -540,8 +540,8 @@
 (define defineClass
   (lambda (name extends state)
     (decVal name (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
-                          (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons (cons staticVars (cons staticVals '())) (cons (lambda ()
-                                                                                                                                           (cons 'object (cons name (cons nonStaticVars (cons nonStaticVals '()))))) '())))))) (popLayer state))))
+                          (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons      (cons (cons staticVars (cons staticVals '())) (if (null? extends) '() (getAttributes (getVal (cadr extends) state))))       (cons (lambda ()
+                                                                                                                                           (cons 'object (cons name (cons (cons nonStaticVars (cons nonStaticVals '()))   (if (null? extends) '() (cons (getAttributes ((getConstructor (getVal (cadr extends) state)))) '())))))) '())))))) (popLayer state))))
 
 
 (define separateVars
@@ -554,10 +554,11 @@
                                                   (return sVars sVals (cons (car vars) nsVars) (cons (car vals) nsVals))))))))
 
 (define getAttributes (lambda (obj) (caddr obj)))
+(define getConstructor (lambda (class) (cadddr class)))
     
 (define getProperty
   (lambda (object property state)
-    (getVal property (cons (getAttributes (getVal object state)) '()))))
+    (getVal property (getAttributes (getVal object state)))))
 
 
 
