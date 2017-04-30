@@ -539,8 +539,9 @@
 
 (define defineClass
   (lambda (name extends state)
-    (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
-                                                                             (newline)))))
+    (decVal name (separateVars (car (getFirstLayer state)) (cadr (getFirstLayer state)) (lambda (staticVars staticVals nonStaticVars nonStaticVals)
+                          (cons 'class (cons (if (null? extends) '() (cadr extends)) (cons (cons staticVars (cons staticVals '())) (cons (lambda ()
+                                                                                                                                           (cons 'object (cons name (cons nonStaticVars (cons nonStaticVals '()))))) '())))))) (popLayer state))))
 
 
 (define separateVars
