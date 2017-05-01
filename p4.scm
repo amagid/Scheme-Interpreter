@@ -48,7 +48,7 @@
                 (call/cc
                  (lambda (return)
                    (interpreter (parser fd) '((() ())) return continueError breakError throwError))))))
-          ((getProperty (string->symbol className) 'main state) '() state)))))))
+          ((getProperty (string->symbol className) 'main state) (cons (getVal (string->symbol className) state) '()) state)))))))
 
 (define selectReturn
   (lambda (returnVals)
@@ -118,11 +118,11 @@
       ((eqv? (getFirstOperation pt) 'break) (cont_b s))
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
-      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState           (if (procedure? (getFirstOperand pt)) ((getFirstOperand pt) (resolveArgs (getSecondPlusOperands pt) s cont_t) s) ((getVal (getFirstOperand pt) s) (resolveArgs (getSecondPlusOperands pt) s cont_t) s))          ) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
+      ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (cons 'this (getSecondOperand pt)) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState           (if (procedure? (getFirstOperand pt)) ((getFirstOperand pt) (resolveArgs (cons (car (m_eval (cadadr pt) s cont_t)) (getSecondPlusOperands pt)) s cont_t) s) ((getVal (getFirstOperand pt) s) (resolveArgs (cons (car (m_eval (cadadr pt) s cont_t)) (getSecondPlusOperands pt)) s cont_t) s))          ) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
       ((eqv? (getFirstOperation pt) 'class) (interpreter (getRemainingStatements pt) (defineClass (getFirstOperand pt) (getSecondOperand pt) (extractState (interpreter (getThirdOperand pt) (addLayer s) return cont_c cont_b cont_t))) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'static-var) (interpreter (getRemainingStatements pt) (decVal (cons (getFirstOperand pt) '()) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
-      ((eqv? (getFirstOperation pt) 'static-function) (interpreter (getRemainingStatements pt) (defineFunc (cons (getFirstOperand pt) '()) (getSecondOperand pt) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
+      ((eqv? (getFirstOperation pt) 'static-function) (interpreter (getRemainingStatements pt) (defineFunc (cons (getFirstOperand pt) '()) (cons 'this (getSecondOperand pt)) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
       (else (cont_t s (buildError "INTERPRETER ERROR: Invalid statement: " (getFirstOperation pt)))))))
 
 ; ------------------------------------------------------------------------------
@@ -162,7 +162,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) (let ((func (if (list? (getStFirstOperand st)) (extractValue (m_eval (getStFirstOperand st) s cont_t)) (getVal (getStFirstOperand st) s)))) (func (resolveArgs (getStRemainingOperands st) s cont_t) s)))
+      ((eqv? (getStOperator st) 'funcall) (let ((func (if (list? (getStFirstOperand st)) (extractValue (m_eval (getStFirstOperand st) s cont_t)) (getVal (getStFirstOperand st) s)))) (func (resolveArgs (cons (car (m_eval (cadadr st) s cont_t)) (getStRemainingOperands st)) s cont_t) s)))
       ((eqv? (getStOperator st) 'new) (cons ((getConstructor (getVal (getStFirstOperand st) s))) s))
       ((eqv? (getStOperator st) 'dot) (cons (getProperty (getStFirstOperand st) (getStSecondOperand st) s) s))
       (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
@@ -282,6 +282,7 @@
     (cond
       ((null? name) (throwError state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
+      ((list? name) name)
       ((or (integer? name) (boolean? name)) name)
       ((or (eqv? name 'true) (eqv? name 'false)) name)
       (else
@@ -486,7 +487,8 @@
   (lambda (argList state cont_t)
     (cond
       ((null? argList) '())
-      ((list? (car argList)) (cons (extractValue (m_eval (car argList) state cont_t)) (resolveArgs (cdr argList) state cont_t)))
+      ((and (list? (car argList)) (and (not (eqv? (caar argList) 'object)) (not (eqv? (caar argList) 'class)))) (cons (extractValue (m_eval (car argList) state cont_t)) (resolveArgs (cdr argList) state cont_t)))
+      ((and (list? (car argList)) (or (eqv? (caar argList) 'object)) (eqv? (caar argList) 'class)) (cons (car argList) (resolveArgs (cdr argList) state cont_t)))
       (else (cons (getVal (car argList) state) (resolveArgs (cdr argList) state cont_t))))))
 
 ; ------------------------------------------------------------------------------
