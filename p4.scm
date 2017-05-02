@@ -101,6 +101,7 @@
 (define getThirdOperand (lambda (pt) (car (getThirdPlusOperands pt))))
 (define getSecondOperand (lambda (pt) (caddar pt)))
 (define getFirstLayer (lambda (pt) (car pt)))
+(define findObject (lambda (pt) (cadadr (car pt))))
 
 ; Continuations: Break, Continue, Return, Throw
 (define interpreter
@@ -119,7 +120,7 @@
       ((eqv? (getFirstOperation pt) 'try) (interpreter (getRemainingStatements pt) (m_try (getFirstOperand pt) (getSecondOperand pt) (getThirdOperand pt) s return cont_c cont_b cont_t) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'throw) (cont_t s (getFirstOperand pt)))
       ((eqv? (getFirstOperation pt) 'function) (interpreter (getRemainingStatements pt) (defineFunc (getFirstOperand pt) (cons 'this (getSecondOperand pt)) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
-      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState           (if (procedure? (getFirstOperand pt)) ((getFirstOperand pt) (resolveArgs (cons (car (m_eval (cadadr pt) s cont_t)) (getSecondPlusOperands pt)) s cont_t) s) ((getVal (getFirstOperand pt) s) (resolveArgs (cons (car (m_eval (cadadr pt) s cont_t)) (getSecondPlusOperands pt)) s cont_t) s))          ) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
+      ((eqv? (getFirstOperation pt) 'funcall) (interpreter (getRemainingStatements pt) (extractState           (if (procedure? (getFirstOperand pt)) ((getFirstOperand pt) (cons (findObject pt) (resolveArgs (getSecondPlusOperands pt) s cont_t)) s) ((car (m_eval (getFirstOperand pt) s cont_t)) (cons (findObject pt) (resolveArgs (getSecondPlusOperands pt) s cont_t)) s))          ) return cont_c cont_b cont_t)) ; TODO I think I passed an incorrect throw continuation in the return arg of this interpreter call -Ryan
       ((eqv? (getFirstOperation pt) 'class) (interpreter (getRemainingStatements pt) (defineClass (getFirstOperand pt) (getSecondOperand pt) (extractState (interpreter (getThirdOperand pt) (addLayer s) return cont_c cont_b cont_t))) return cont_c cont_b cont_t))
       ((eqv? (getFirstOperation pt) 'static-var) (interpreter (getRemainingStatements pt) (decVal (cons (getFirstOperand pt) '()) (car (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t)) (cdr (m_eval (if (null? (getSecondPlusOperands pt)) (getSecondPlusOperands pt) (getSecondOperand pt)) s cont_t))) return cont_c cont_b cont_t)) 
       ((eqv? (getFirstOperation pt) 'static-function) (interpreter (getRemainingStatements pt) (defineFunc (cons (getFirstOperand pt) '()) (cons 'this (getSecondOperand pt)) (getThirdOperand pt) s cont_t) return cont_c cont_b cont_t))
@@ -162,7 +163,7 @@
       ((eqv? (getStOperator st) '!) (cons (not (car (m_eval (getStFirstOperand st) s cont_t))) (cdr (m_eval (getStFirstOperand st) s cont_t))))
       ((eqv? (getStOperator st) '&&) (cons (and (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
       ((eqv? (getStOperator st) '||) (cons (or (car (m_eval (getStFirstOperand st) s cont_t))  (car (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))) (cdr (m_eval (getStSecondOperand st) (cdr (m_eval (getStFirstOperand st) s cont_t)) cont_t))))
-      ((eqv? (getStOperator st) 'funcall) (let ((func (if (list? (getStFirstOperand st)) (extractValue (m_eval (getStFirstOperand st) s cont_t)) (getVal (getStFirstOperand st) s)))) (func (resolveArgs (cons (car (m_eval (cadadr st) s cont_t)) (getStRemainingOperands st)) s cont_t) s)))
+      ((eqv? (getStOperator st) 'funcall) (let ((func (if (list? (getStFirstOperand st)) (extractValue (m_eval (getStFirstOperand st) s cont_t)) (getVal (getStFirstOperand st) s)))) (func (cons (cadadr st) (resolveArgs (getStRemainingOperands st) s cont_t)) s)))
       ((eqv? (getStOperator st) 'new) (cons ((getConstructor (getVal (getStFirstOperand st) s))) s))
       ((eqv? (getStOperator st) 'dot) (cons (getProperty (getStFirstOperand st) (getStSecondOperand st) s) s))
       (else (cont_t s (buildError "ERROR: Unknown operator/statement: " st))) )))
@@ -251,6 +252,7 @@
   (lambda (name value state)
     (cond
       ((null? state) (cont_t state (buildError "SETVAL ERROR: Variable not found: " name)))
+      ((and (list? name) (eqv? (car name) 'dot)) (setVal (cadr name) (setProperty (car (m_eval (cadr name) state throwError)) (caddr name) value) state))
       ((eqv? #f (call/cc (lambda (cont) (cont (setVal* name value (car state) cont))))) (cons (car state) (setVal name value (cdr state))))
       (else (cons (setVal* name value (car state) (lambda (v) (error v))) (cdr state))))))
 
@@ -434,12 +436,21 @@
   (lambda (name args block s cont_t)
     (decVal name
             (lambda (argList state)
-;              (display "running ")(display name)(newline)
-                   (let ((newState (m_func block
-                           (addArgs args argList (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
+;              (car (m_eval (findObject pt) s cont_t))
+                   (let ((newState (clearFunctionState (updateThis (car argList) (m_func block
+                           (addArgs args (applyThis argList state) (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
                                                                                                                                                                                             (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState))))
                                                                                                                                                                                             (popLayer (extractState newState)))
                                                                                                                                                                                             ))) s)))
+(define applyThis
+  (lambda (argList state)
+    (cons (getVal (car argList) state) (cdr argList))))
+
+(define updateThis
+  (lambda (newThis newState)
+    (if (null? (cdddr newState)) newState
+    (cons (extractValue newState) (cons (car (extractState newState)) (setVal newThis (getVal 'this (extractState newState)) (popLayer (extractState newState))))))))
+
 
 (define reduceState
   (lambda (state removeLayers)
@@ -503,10 +514,9 @@
 ; ------------------------------------------------------------------------------
 (define m_func
   (lambda (block s cont_t)
-    (clearFunctionState
-     (call/cc
-      (lambda (return)
-        (interpreter block s return continueError breakError cont_t))))))
+    (call/cc
+     (lambda (return)
+       (interpreter block s return continueError breakError cont_t)))))
 
 (define clearFunctionState
   (lambda (returnVals)
@@ -564,6 +574,10 @@
 (define getProperty
   (lambda (object property state)
     (let ((attrs (getAttributes (getVal object state)))) (if (eqv? 'NULL (getVal property attrs)) (if (null? (getClassParent object)) 'NULL (getProperty (getClassParent object) property state)) (getVal property attrs)))))
+
+(define setProperty
+  (lambda (object property value)
+    (cons (car object) (cons (cadr object) (cons (setVal property value (caddr object)) '())))))
 
 
 
