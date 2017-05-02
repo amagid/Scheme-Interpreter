@@ -253,6 +253,7 @@
     (cond
       ((null? state) (cont_t state (buildError "SETVAL ERROR: Variable not found: " name)))
       ((and (list? name) (eqv? (car name) 'dot)) (setVal (cadr name) (setProperty (car (m_eval (cadr name) state throwError)) (caddr name) value) state))
+      ((list? name) state)
       ((eqv? #f (call/cc (lambda (cont) (cont (setVal* name value (car state) cont))))) (cons (car state) (setVal name value (cdr state))))
       (else (cons (setVal* name value (car state) (lambda (v) (error v))) (cdr state))))))
 
@@ -284,7 +285,8 @@
     (cond
       ((null? name) (throwError state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
-      ((list? name) name)
+      ((list? name) (if (eqv? (car name) 'new) ((getConstructor (getVal (cadr name) state))) name))
+      ((eqv? name 'super) (getSuper (getVal 'this state) state))
       ((or (integer? name) (boolean? name)) name)
       ((or (eqv? name 'true) (eqv? name 'false)) name)
       (else
@@ -579,9 +581,13 @@
   (lambda (object property value)
     (cons (car object) (cons (cadr object) (cons (setVal property value (caddr object)) '())))))
 
+(define getSuper
+  (lambda (object state)
+    (cond
+      ((eqv? (car object) 'object) (cons 'object (cons (getClassParent (getVal (getClassParent object) state)) (popLayer (getAttributes object)))))
+      ((eqv? (car object) 'class) (getVal (getClassParent object) state)))))
 
-
-
+                                                 
 ; ------------------------------------------------------------------------------
 ; atom?
 ; ------------------------------------------------------------------------------
