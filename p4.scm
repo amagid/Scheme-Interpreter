@@ -273,7 +273,7 @@
     (setVal* name value (cons (cdar state) (cons (cdadr state) '())) exit) ))
 
 ; ------------------------------------------------------------------------------
-; getVal - wrapper method for getVal* to deconstruct state variable as necessary
+; getVal - wrapper method for getValInner to check for implicit 'this' which is a wrapper for getVal* to deconstruct state variable as necessary
 ; inputs:
 ;  name - the name of the variable to find
 ;  state - the state to look in
@@ -282,15 +282,22 @@
 ; ------------------------------------------------------------------------------
 (define getVal
   (lambda (name state)
+    (let ((result (getValInner name state))) (if (eqv? result 'NULL) (getValInner (getAttributes (getValInner 'this state)) state) result))))
+
+
+
+    
+(define getValInner
+  (lambda (name state)
     (cond
       ((null? name) (throwError state (buildError "GETVAL ERROR: Name cannot be null." "")))
       ((null? state) 'NULL)
-      ((list? name) (if (eqv? (car name) 'new) ((getConstructor (getVal (cadr name) state))) name))
-      ((eqv? name 'super) (getSuper (getVal 'this state) state))
+      ((list? name) (if (eqv? (car name) 'new) ((getConstructor (getValInner (cadr name) state))) name))
+      ((eqv? name 'super) (getSuper (getValInner 'this state) state))
       ((or (integer? name) (boolean? name)) name)
       ((or (eqv? name 'true) (eqv? name 'false)) name)
       (else
-       (if (eqv? (getVal* name (caar state) (cadar state)) 'NULL) (getVal name (cdr state)) (getVal* name (caar state) (cadar state)))))))
+       (if (eqv? (getVal* name (caar state) (cadar state)) 'NULL) (getValInner name (cdr state)) (getVal* name (caar state) (cadar state)))))))
 
 ; ------------------------------------------------------------------------------
 ; getVal* - gets the value of a given variable
