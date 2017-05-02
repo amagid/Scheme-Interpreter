@@ -437,8 +437,8 @@
     (decVal name
             (lambda (argList state)
 ;              (car (m_eval (findObject pt) s cont_t))
-                   (let ((newState (clearFunctionState (updateThis (car argList) (m_func block
-                           (addArgs args (applyThis argList state) (reduceState state (if (eqv? (listLength state) 1) 0 (- (listLength state) (listLength s))))) cont_t))))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
+                   (let ((newState (updateThis name (car argList) state (m_func block
+                           (addArgs args (applyThis argList state) (reduceState state (if (eqv? (listLength state) 1) 0 (+ 1 (- (listLength state) (listLength s)))))) cont_t)))) (valState (extractValue newState) (if (> (- (listLength state) (listLength (extractState newState))) -1)
                                                                                                                                                                                             (restoreState state (extractState newState) (- (listLength state) (listLength (extractState newState))))
                                                                                                                                                                                             (popLayer (extractState newState)))
                                                                                                                                                                                             ))) s)))
@@ -447,9 +447,9 @@
     (cons (getVal (car argList) state) (cdr argList))))
 
 (define updateThis
-  (lambda (newThis newState)
-    (if (null? (cdddr newState)) newState
-    (cons (extractValue newState) (cons (car (extractState newState)) (setVal newThis (getVal 'this (extractState newState)) (popLayer (extractState newState))))))))
+  (lambda (name newThis oldState newState)
+    (if (and (list? name) (eqv? (car name) 'main)) newState
+    (cons (extractValue newState) (setVal newThis (getVal 'this (extractState newState)) (cons (car oldState) (reduceState (extractState newState) (+ 1 (- (listLength (extractState newState)) (listLength oldState))))))))))
 
 
 (define reduceState
